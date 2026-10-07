@@ -222,6 +222,14 @@ details.funil summary::before{content:"▸";display:inline-block;color:var(--txt
 details.funil[open] summary::before{transform:rotate(90deg)}
 details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:column;gap:11px}
 
+/* ============ CHECK "SPY COMPLETO" ============ */
+.spychk{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--txt-3);cursor:pointer;padding:3px 7px;border-radius:6px;user-select:none;white-space:nowrap}
+.spychk:hover{background:var(--surface-2)}
+.spychk.done{color:var(--verde)}
+.spychk input{accent-color:var(--verde);cursor:pointer;margin:0}
+.spychk-modal{display:inline-flex;align-items:center;gap:8px;font-weight:700;cursor:pointer;user-select:none}
+.spychk-modal input{accent-color:var(--verde);width:17px;height:17px;cursor:pointer}
+
 /* ============ CHECK-IN DO DIA (nº de ads na biblioteca) ============ */
 .ckrows{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding-right:2px}
 .ckrow{display:flex;gap:9px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 11px}
@@ -456,6 +464,9 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
         <div class="field"><label>Quiz</label><input type="url" id="fQuiz" placeholder="https://..."></div>
         <div class="field"><label>Advertorial</label><input type="url" id="fAdv" placeholder="https://..."></div>
         <div class="field"><label>Presell</label><input type="url" id="fPresell" placeholder="https://..."></div>
+      </div>
+      <div class="field">
+        <label class="spychk-modal"><input type="checkbox" id="fSpyCompleto"> Spy completo ✓ (oferta já toda destrinchada)</label>
       </div>
       <div class="field"><label>Observações</label><textarea id="fObs" placeholder="Ângulo, gancho, o que roubar, o que evitar..."></textarea></div>
       <div class="field hidden" id="histWrap"><label>Histórico de ads</label><div id="histView" style="font-size:13px;color:var(--txt-2);font-weight:600"></div></div>
@@ -878,6 +889,7 @@ function cardHTML(o){
       ${o.observacoes?`<div class="obs">${esc(o.observacoes)}</div>`:""}
       ${links?`<div class="links">${links}</div>`:""}
       <div class="cardfoot">
+        <label class="spychk ${o.spyCompleto?"done":""}" title="Marca quando o spy dessa oferta estiver completo"><input type="checkbox" data-spy="${o.id}" ${o.spyCompleto?"checked":""}> ${o.spyCompleto?"Spy ✓":"Spy"}</label>
         <button class="mini" data-edit="${o.id}">✏️ Editar</button>
         <button class="mini" data-ads="${o.id}" title="Atualizar o nº de ads de hoje">📈</button>
         <button class="mini del" data-del="${o.id}">🗑️ Apagar</button>
@@ -973,6 +985,7 @@ function abrirOferta(id){
   $("#fAnunciante").value=o?.anunciante||"";
   $("#fComoEncontrou").value=o?.comoEncontrou||"";
   $("#fQuem").value=o?.capturadoPor ?? (quemSou()||"");
+  $("#fSpyCompleto").checked=!!o?.spyCompleto;
   $("#fFront").value=o?.linkFront||"";
   $("#fBackredirect").value=o?.linkBackredirect||"";
   for(let n=1;n<=4;n++){
@@ -1016,6 +1029,7 @@ function salvarOferta(){
     plataforma:$("#fPlataforma").value, lingua:$("#fLingua").value.trim(), tipo:$("#fTipo").value.trim(),
     anunciante:$("#fAnunciante").value.trim(), comoEncontrou:$("#fComoEncontrou").value.trim(),
     capturadoPor:$("#fQuem").value,
+    spyCompleto:$("#fSpyCompleto").checked,
     linkFront:limpaUrl($("#fFront").value), linkBackredirect:limpaUrl($("#fBackredirect").value),
     linkUpsell1:limpaUrl($("#fUpsell1").value), linkDownsell1:limpaUrl($("#fDownsell1").value),
     linkUpsell2:limpaUrl($("#fUpsell2").value), linkDownsell2:limpaUrl($("#fDownsell2").value),
@@ -1249,6 +1263,14 @@ function wire(){
     if(cp){ e.preventDefault(); copiar(cp.dataset.copy); return; }
     const dl=e.target.closest("[data-del]");
     if(dl){ apagarOferta(dl.dataset.del); return; }
+    const sp=e.target.closest("[data-spy]");
+    if(sp){
+      const o=ofById(sp.dataset.spy); if(!o) return;
+      o.spyCompleto=sp.checked; o.atualizadoEm=Date.now();
+      save(); renderTudo();
+      toast(sp.checked?"Spy completo ✓":"Spy desmarcado");
+      return;
+    }
     const qa=e.target.closest("[data-ads]");
     if(qa){
       const o=ofById(qa.dataset.ads); if(!o) return;
