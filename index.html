@@ -195,10 +195,15 @@ select:focus,input:focus,textarea:focus{border-color:var(--laranja)}
 .modal-head .x:hover{background:var(--surface-2);color:var(--txt)}
 .modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:13px}
 .modal-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
-.field{display:flex;flex-direction:column;gap:5px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .field label{font-size:12px;font-weight:700;color:var(--txt-2);text-transform:uppercase;letter-spacing:.03em}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+/* nada do formulário estoura pra fora do modal: todo campo encolhe junto com a tela */
+.row2>*,.row3>*{min-width:0}
+.modal{overflow:hidden}
+.modal-body{overflow-x:hidden}
+.modal-body input:not([type=checkbox]):not([type=file]),.modal-body select,.modal-body textarea{min-width:0;width:100%;max-width:100%}
 textarea{resize:vertical;min-height:62px;line-height:1.5}
 #fObs{min-height:120px}
 .multi{min-height:60px;font-size:14px}
@@ -278,6 +283,11 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
   .grid{grid-template-columns:1fr 1fr;gap:10px}
   .resumo{width:100%;margin:6px 0 0;order:3}
   .row3{grid-template-columns:1fr}
+  .modal .row2{grid-template-columns:1fr}
+  .overlay{padding:14px 8px}
+  .modal-head{padding:13px 14px}
+  .modal-body{padding:13px 14px}
+  .modal-foot{padding:12px 14px;flex-wrap:wrap}
   .card .nome{font-size:13.5px}
   .search{min-width:100%;order:5}
 }
