@@ -771,10 +771,12 @@ async function pushDiff(){
     if(ups.length){
       const {error}=await sb.from("painel_rows").upsert(ups);
       if(error) throw error;
+      let tombou=false;
       for(const u of ups){
         lastSynced.set(u.id,{kind:u.kind, j:u.deleted?"__del__":JSON.stringify(u.data)});
-        if(u.deleted) lixeiraPoe(u.id,u.kind,u.data);
+        if(u.deleted){ lixeiraPoe(u.id,u.kind,u.data); tombou=true; }
       }
+      if(tombou) renderResumo(); // atualiza o contador da lixeira na hora
       if(canal) canal.send({type:"broadcast", event:"mudou", payload:{de:clientId}});
       await pullNovos(); // sincroniza o lastPull com o relógio do servidor
     }
