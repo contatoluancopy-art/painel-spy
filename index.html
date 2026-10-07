@@ -369,7 +369,15 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
       </div>
       <div class="row3">
         <div class="field"><label>Nicho</label><input type="text" id="fNicho" placeholder="Ex: Próstata"></div>
-        <div class="field"><label>País / Geo</label><input type="text" id="fPais" placeholder="Ex: EUA"></div>
+        <div class="field"><label>País / Geo (alvo)</label>
+          <input type="text" id="fPais" list="dlPaises" placeholder="Ex: 🇺🇸 EUA">
+          <datalist id="dlPaises">
+            <option value="🇧🇷 Brasil"><option value="🇺🇸 EUA"><option value="🇲🇽 México">
+            <option value="🇵🇹 Portugal"><option value="🇪🇸 Espanha"><option value="🇫🇷 França">
+            <option value="🇨🇦 Canadá"><option value="🇬🇧 Reino Unido"><option value="🇮🇹 Itália">
+            <option value="🇩🇪 Alemanha"><option value="🇦🇷 Argentina"><option value="🇨🇴 Colômbia">
+          </datalist>
+        </div>
         <div class="field"><label>Status</label>
           <select id="fStatus">
             <option value="na-mira">Na mira</option>
@@ -393,11 +401,17 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
           </select>
         </div>
         <div class="field"><label>Língua</label>
-          <input type="text" id="fLingua" list="dlLinguas" placeholder="Ex: 🇧🇷 Português">
-          <datalist id="dlLinguas">
-            <option value="🇧🇷 Português"><option value="🇺🇸 Inglês"><option value="🇪🇸 Espanhol">
-            <option value="🇫🇷 Francês"><option value="🇩🇪 Alemão"><option value="🇮🇹 Italiano">
-          </datalist>
+          <select id="fLingua">
+            <option value="">—</option>
+            <option>🇧🇷 Português</option>
+            <option>🇺🇸 Inglês</option>
+            <option>🇪🇸 Espanhol</option>
+            <option>🇫🇷 Francês</option>
+            <option>🇩🇪 Alemão</option>
+            <option>🇮🇹 Italiano</option>
+            <option>🇵🇱 Polonês</option>
+            <option>🌍 Outra</option>
+          </select>
         </div>
         <div class="field"><label>Tipo</label>
           <input type="text" id="fTipo" list="dlTipos" placeholder="Ex: INFO (curso, e-book)">
@@ -980,7 +994,12 @@ function abrirOferta(id){
   $("#fObs").value=o?.observacoes||"";
   // campos novos (cadastro completo)
   $("#fPlataforma").value=o?.plataforma||"";
-  $("#fLingua").value=o?.lingua||"";
+  // língua: se o valor salvo for antigo (texto livre), cria a option na hora pra não perder
+  const _ling=o?.lingua||"", _selL=$("#fLingua");
+  if(_ling && ![..._selL.options].some(op=>op.value===_ling)){
+    const op=document.createElement("option"); op.value=op.textContent=_ling; _selL.appendChild(op);
+  }
+  _selL.value=_ling;
   $("#fTipo").value=o?.tipo||"";
   $("#fAnunciante").value=o?.anunciante||"";
   $("#fComoEncontrou").value=o?.comoEncontrou||"";
