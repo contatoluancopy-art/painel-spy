@@ -482,6 +482,10 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
         <div class="field"><label>Biblioteca (Facebook Ad Library)</label><input type="url" id="fFb" placeholder="https://..."></div>
         <div class="field"><label>Link do checkout</label><input type="url" id="fCheckout" placeholder="https://..."></div>
       </div>
+      <div class="row2">
+        <div class="field"><label>Drive VSL/AD/HTML</label><input type="url" id="fDrive" placeholder="https://drive.google.com/..."></div>
+        <div class="field"><label>Link do Swipe</label><input type="url" id="fSwipe" placeholder="https://..."></div>
+      </div>
       <details class="funil" id="funilDet">
         <summary>Funil completo — front, upsells, downsells...</summary>
         <div class="funil-body">
@@ -504,10 +508,6 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
           <div class="row2">
             <div class="field"><label>Página de obrigado</label><input type="url" id="fObrigado" placeholder="https://..."></div>
             <div class="field"><label>Área de membros</label><input type="url" id="fMembros" placeholder="https://..."></div>
-          </div>
-          <div class="row2">
-            <div class="field"><label>Drive VSL/AD/HTML</label><input type="url" id="fDrive" placeholder="https://drive.google.com/..."></div>
-            <div class="field"><label>Link do Swipe</label><input type="url" id="fSwipe" placeholder="https://..."></div>
           </div>
         </div>
       </details>
@@ -1003,6 +1003,7 @@ function cardHTML(o){
   const adsNat=adsNatDe(o).filter(a=>a.url);
   const links=[
     o.linkFb      && linkChip("fb","FB",o.linkFb),
+    o.linkDrive   && linkChip("","Drive",o.linkDrive),
     ...vsls.map((u,i)=>linkChip("vsl", vsls.length>1?("VSL "+(i+1)):"VSL", u)),
     ...adsNat.map((a,i)=>{
       const extra=[a.views!=null?fmtNum(a.views)+" views":"", a.likes!=null?fmtNum(a.likes)+" likes":"", fmtDataCurta(a.data)].filter(Boolean).join(" · ");
@@ -1021,7 +1022,6 @@ function cardHTML(o){
     o.linkPresell && linkChip("","Presell",o.linkPresell),
     o.linkObrigado&& linkChip("","Obrigado",o.linkObrigado),
     o.linkMembros && linkChip("","Membros",o.linkMembros),
-    o.linkDrive   && linkChip("","Drive",o.linkDrive),
     o.linkSwipe   && linkChip("","Swipe",o.linkSwipe),
   ].filter(Boolean).join("");
   const metaBits=[
@@ -1162,7 +1162,7 @@ function abrirOferta(id){
   $("#fDrive").value=o?.linkDrive||"";
   $("#fSwipe").value=o?.linkSwipe||"";
   // abre o bloco do funil só se já tem algo preenchido nele
-  const temFunil=!!(o && (o.linkFront||o.linkBackredirect||o.linkObrigado||o.linkMembros||o.linkDrive||o.linkSwipe||
+  const temFunil=!!(o && (o.linkFront||o.linkBackredirect||o.linkObrigado||o.linkMembros||
     [1,2,3,4].some(n=>o["linkUpsell"+n]||o["linkDownsell"+n])));
   $("#funilDet").open=temFunil;
   // histórico
