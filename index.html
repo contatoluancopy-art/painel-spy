@@ -222,6 +222,17 @@ details.funil summary::before{content:"▸";display:inline-block;color:var(--txt
 details.funil[open] summary::before{transform:rotate(90deg)}
 details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:column;gap:11px}
 
+/* ============ CHECK-IN DO DIA (nº de ads na biblioteca) ============ */
+.ckrows{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding-right:2px}
+.ckrow{display:flex;gap:9px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 11px}
+.ckrow .cknome{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+.ckrow .ckult{color:var(--txt-3);font-size:12px;font-weight:600;white-space:nowrap}
+.ckrow input{width:86px;text-align:center;padding:7px 8px;flex:none}
+.ckrow .ckfb{color:var(--txt-3);padding:4px 6px;border-radius:6px;display:inline-flex}
+.ckrow .ckfb:hover{background:var(--surface-3);color:#4c8bf5}
+.ckrow .ckok{color:var(--verde);font-weight:800;font-size:13px;width:14px;text-align:center}
+@media(max-width:560px){ .ckrow{flex-wrap:wrap} .ckrow .cknome{width:100%;flex:none;white-space:normal} }
+
 /* ============ ONLINE: badge de sync + porta de senha ============ */
 .syncbadge{font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid var(--border);color:var(--txt-3);background:var(--surface-2);white-space:nowrap}
 .syncbadge.vivo{color:#4ade80;border-color:rgba(34,165,101,.4);background:rgba(34,165,101,.1)}
@@ -302,6 +313,7 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
     </div>
     <div class="toolbar">
       <button class="btn primary" id="btnNovaOferta">+ Nova oferta</button>
+      <button class="btn" id="btnCheckin" title="Atualizar o nº de ads de cada oferta hoje">📈 Check-in</button>
       <div class="seg"><span class="lbl">Agrupar</span>
         <button data-group="dia" class="active">Dia</button>
         <button data-group="projeto">Projeto</button>
@@ -473,6 +485,22 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
 
 <input type="file" id="importFile" accept="application/json,.json" class="hidden">
 <div id="toast"></div>
+
+<!-- ===== MODAL CHECK-IN DO DIA ===== -->
+<div class="overlay" id="modalCheckin">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-head"><h3>📈 Check-in do dia — ads na biblioteca</h3><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div style="color:var(--txt-3);font-size:12.5px;font-weight:600;line-height:1.5">Abre a biblioteca de cada uma (↗), vê quantos ads estão ativos e digita o número. Só preenche as que você conferiu — o resto fica pra depois.</div>
+      <div class="ckrows" id="checkinLista"></div>
+    </div>
+    <div class="modal-foot">
+      <span id="checkinInfo" style="color:var(--txt-3);font-size:12.5px;font-weight:600"></span>
+      <button class="btn" data-close style="margin-left:auto" type="button">Cancelar</button>
+      <button class="btn primary" id="btnSalvarCheckin" type="button">Salvar check-in</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== PORTA DE ENTRADA (senha do time, só no modo online) ===== -->
 <div class="overlay" id="gate">
@@ -851,6 +879,7 @@ function cardHTML(o){
       ${links?`<div class="links">${links}</div>`:""}
       <div class="cardfoot">
         <button class="mini" data-edit="${o.id}">✏️ Editar</button>
+        <button class="mini" data-ads="${o.id}" title="Atualizar o nº de ads de hoje">📈</button>
         <button class="mini del" data-del="${o.id}">🗑️ Apagar</button>
         ${ads?sparkline(ads.serie):""}
       </div>
@@ -865,6 +894,8 @@ function renderResumo(){
   const total=state.ofertas.length;
   const esc_=state.ofertas.filter(o=>o.status==="escalando").length;
   $("#resumo").innerHTML=`<span><b>${total}</b> ofertas</span><span><b>${esc_}</b> escalando</span>`;
+  const pend=semCheckinHoje().length;
+  $("#btnCheckin").textContent= pend? `📈 Check-in (${pend})` : "📈 Check-in ✓";
 }
 function renderTudo(){ renderOfertas(); renderResumo(); syncProjetoSelects(); }
 
@@ -1024,6 +1055,57 @@ function apagarOferta(id){
 function quemSou(){ try{ return localStorage.getItem("painel-quem")||""; }catch(e){ return ""; } }
 function lembraQuem(v){ if(!v) return; try{ localStorage.setItem("painel-quem",v); }catch(e){} }
 
+/* ---------- check-in do dia: nº de ads na biblioteca, oferta por oferta ---------- */
+function registraAdsHoje(o,valor){
+  o.adsHistorico=o.adsHistorico||[];
+  const hj=hoje(), ex=o.adsHistorico.find(x=>x.data===hj);
+  if(ex){ if(ex.valor===valor) return false; ex.valor=valor; } else o.adsHistorico.push({data:hj,valor});
+  o.atualizadoEm=Date.now();
+  return true;
+}
+function semCheckinHoje(){
+  const hj=hoje();
+  return state.ofertas.filter(o=>o.status!=="morto" && !(o.adsHistorico||[]).some(x=>x.data===hj));
+}
+function abrirCheckin(){
+  const hj=hoje();
+  const lista=state.ofertas.filter(o=>o.status!=="morto").slice()
+    .sort((a,b)=>{
+      const pa=(a.adsHistorico||[]).some(x=>x.data===hj), pb=(b.adsHistorico||[]).some(x=>x.data===hj);
+      if(pa!==pb) return pa?1:-1; // pendentes primeiro
+      return (a.nome||"").localeCompare(b.nome||"");
+    });
+  if(!lista.length){ toast("Nenhuma oferta pra acompanhar"); return; }
+  $("#checkinLista").innerHTML=lista.map(o=>{
+    const h=(o.adsHistorico||[]).slice().sort((a,b)=>a.data<b.data?-1:1);
+    const ult=h.length?h[h.length-1]:null;
+    const deHoje=h.find(x=>x.data===hj);
+    return `<div class="ckrow" data-ck="${o.id}">
+      <span class="cknome">${esc(o.nome)||"(sem nome)"}</span>
+      ${o.linkFb?`<a class="ckfb" href="${esc(norm(o.linkFb))}" target="_blank" rel="noopener" title="Abrir a biblioteca">${OPEN_SVG}</a>`:""}
+      <span class="ckult">${ult? "último: <b>"+ult.valor+"</b> ("+fmtDataCurta(ult.data)+")" : "sem registro"}</span>
+      <input type="number" min="0" placeholder="hoje" value="${deHoje?deHoje.valor:""}">
+      <span class="ckok" style="${deHoje?"":"opacity:0"}">✓</span>
+    </div>`;
+  }).join("");
+  const pend=semCheckinHoje().length;
+  $("#checkinInfo").textContent= pend? `${pend} de ${lista.length} sem check-in hoje` : "Todas com check-in hoje ✓";
+  $("#modalCheckin").classList.add("open");
+}
+function salvarCheckin(){
+  let n=0;
+  $$("#checkinLista .ckrow").forEach(r=>{
+    const v=r.querySelector("input").value.trim();
+    if(v==="") return;
+    const valor=parseInt(v,10); if(isNaN(valor)) return;
+    const o=ofById(r.dataset.ck); if(!o) return;
+    if(registraAdsHoje(o,valor)) n++;
+  });
+  if(!n){ toast("Nada novo pra salvar"); return; }
+  save(); fecharModais(); renderTudo();
+  toast(`Check-in salvo ✓ ${n} oferta${n>1?"s":""}`);
+}
+
 /* ---------- captura rápida (baixa fricção) ---------- */
 function qcapSalvar(){
   const quem=$("#qQuem").value;
@@ -1167,8 +1249,23 @@ function wire(){
     if(cp){ e.preventDefault(); copiar(cp.dataset.copy); return; }
     const dl=e.target.closest("[data-del]");
     if(dl){ apagarOferta(dl.dataset.del); return; }
+    const qa=e.target.closest("[data-ads]");
+    if(qa){
+      const o=ofById(qa.dataset.ads); if(!o) return;
+      const u=ultimoAds(o);
+      const v=prompt(`Nº de ads HOJE na biblioteca — ${o.nome||"(sem nome)"}:`, u?u.valor:"");
+      if(v!=null && v.trim()!==""){
+        const valor=parseInt(v,10);
+        if(!isNaN(valor)){ registraAdsHoje(o,valor); save(); renderTudo(); toast("Ads de hoje registrado ✓"); }
+      }
+      return;
+    }
     const ed=e.target.closest("[data-edit]"); if(ed){ abrirOferta(ed.dataset.edit); }
   };
+
+  // check-in do dia
+  $("#btnCheckin").onclick=abrirCheckin;
+  $("#btnSalvarCheckin").onclick=salvarCheckin;
 
   // modais: fechar
   $$("[data-close]").forEach(b=>b.onclick=fecharModais);
