@@ -480,7 +480,7 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
         <div class="field"><label>Presell</label><input type="url" id="fPresell" placeholder="https://..."></div>
       </div>
       <div class="field">
-        <label class="spychk-modal"><input type="checkbox" id="fSpyCompleto"> Spy completo ✓ (oferta já toda destrinchada)</label>
+        <label class="spychk-modal"><input type="checkbox" id="fSpyCompleto"> Spy completo "com dados de insider"</label>
       </div>
       <div class="field"><label>Observações</label><textarea id="fObs" placeholder="Ângulo, gancho, o que roubar, o que evitar..."></textarea></div>
       <div class="field hidden" id="histWrap"><label>Histórico de ads</label><div id="histView" style="font-size:13px;color:var(--txt-2);font-weight:600"></div></div>
@@ -903,7 +903,7 @@ function cardHTML(o){
       ${o.observacoes?`<div class="obs">${esc(o.observacoes)}</div>`:""}
       ${links?`<div class="links">${links}</div>`:""}
       <div class="cardfoot">
-        <label class="spychk ${o.spyCompleto?"done":""}" title="Marca quando o spy dessa oferta estiver completo"><input type="checkbox" data-spy="${o.id}" ${o.spyCompleto?"checked":""}> ${o.spyCompleto?"Spy ✓":"Spy"}</label>
+        <label class="spychk ${o.spyCompleto?"done":""}" title='Spy completo "com dados de insider"'><input type="checkbox" data-spy="${o.id}" ${o.spyCompleto?"checked":""}> ${o.spyCompleto?"Spy ✓":"Spy"}</label>
         <button class="mini" data-edit="${o.id}">✏️ Editar</button>
         <button class="mini" data-ads="${o.id}" title="Atualizar o nº de ads de hoje">📈</button>
         <button class="mini del" data-del="${o.id}">🗑️ Apagar</button>
