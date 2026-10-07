@@ -288,6 +288,11 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
   <section id="view-ofertas">
     <div class="qcap">
       <div class="tit">⚡ Captura rápida</div>
+      <select id="qQuem" title="Quem tá salvando a oferta">
+        <option value="">Quem? </option>
+        <option>Aeternum</option>
+        <option>Luan</option>
+      </select>
       <input type="text" id="qNome" placeholder="Nome da oferta (opcional)">
       <input type="url" id="qLink" placeholder="Link da biblioteca (Ad Library)">
       <input type="number" id="qAds" min="0" placeholder="Nº ads">
@@ -302,6 +307,7 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
         <button data-group="projeto">Projeto</button>
       </div>
       <select id="filtroProjeto"><option value="">Todos os projetos</option></select>
+      <input type="date" id="filtroDia" title="Filtrar por dia (limpa pra ver todos)">
       <select id="filtroStatus">
         <option value="">Todo status</option>
         <option value="na-mira">Na mira</option>
@@ -381,9 +387,16 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
           </datalist>
         </div>
       </div>
-      <div class="row2">
+      <div class="row3">
         <div class="field"><label>Anunciante / Marca</label><input type="text" id="fAnunciante" placeholder="Nome da marca ou anunciante"></div>
-        <div class="field"><label>Como encontrou</label><input type="text" id="fComoEncontrou" placeholder="Ex: Sem Rush, Ad Library, indicação..."></div>
+        <div class="field"><label>Como encontrou</label><input type="text" id="fComoEncontrou" placeholder="Ex: Sem Rush, Ad Library..."></div>
+        <div class="field"><label>Capturada por</label>
+          <select id="fQuem">
+            <option value="">—</option>
+            <option>Aeternum</option>
+            <option>Luan</option>
+          </select>
+        </div>
       </div>
       <div class="row2">
         <div class="field"><label>Dia</label><input type="date" id="fDia"></div>
@@ -740,14 +753,16 @@ function filtros(){
   return {
     projeto: $("#filtroProjeto").value,
     status:  $("#filtroStatus").value,
+    dia:     $("#filtroDia").value,
     q:       $("#busca").value.trim().toLowerCase(),
   };
 }
 function passaFiltro(o,f){
   if(f.projeto && o.projetoId!==f.projeto) return false;
   if(f.status && o.status!==f.status) return false;
+  if(f.dia && o.dia!==f.dia) return false;
   if(f.q){
-    const blob=[o.nome,o.nicho,o.pais,o.observacoes,o.anunciante,o.plataforma,o.lingua,o.tipo,o.comoEncontrou].map(x=>x||"").join(" ").toLowerCase();
+    const blob=[o.nome,o.nicho,o.pais,o.observacoes,o.anunciante,o.plataforma,o.lingua,o.tipo,o.comoEncontrou,o.capturadoPor].map(x=>x||"").join(" ").toLowerCase();
     if(!blob.includes(f.q)) return false;
   }
   return true;
@@ -814,6 +829,7 @@ function cardHTML(o){
     o.linkSwipe   && linkChip("","Swipe",o.linkSwipe),
   ].filter(Boolean).join("");
   const metaBits=[
+    o.capturadoPor && ("👤 "+esc(o.capturadoPor)),
     o.nicho && esc(o.nicho),
     o.pais  && esc(o.pais),
     o.plataforma && esc(o.plataforma),
@@ -925,6 +941,7 @@ function abrirOferta(id){
   $("#fTipo").value=o?.tipo||"";
   $("#fAnunciante").value=o?.anunciante||"";
   $("#fComoEncontrou").value=o?.comoEncontrou||"";
+  $("#fQuem").value=o?.capturadoPor ?? (quemSou()||"");
   $("#fFront").value=o?.linkFront||"";
   $("#fBackredirect").value=o?.linkBackredirect||"";
   for(let n=1;n<=4;n++){
@@ -967,6 +984,7 @@ function salvarOferta(){
     linkQuiz:limpaUrl($("#fQuiz").value), linkAdv:limpaUrl($("#fAdv").value), linkPresell:limpaUrl($("#fPresell").value),
     plataforma:$("#fPlataforma").value, lingua:$("#fLingua").value.trim(), tipo:$("#fTipo").value.trim(),
     anunciante:$("#fAnunciante").value.trim(), comoEncontrou:$("#fComoEncontrou").value.trim(),
+    capturadoPor:$("#fQuem").value,
     linkFront:limpaUrl($("#fFront").value), linkBackredirect:limpaUrl($("#fBackredirect").value),
     linkUpsell1:limpaUrl($("#fUpsell1").value), linkDownsell1:limpaUrl($("#fDownsell1").value),
     linkUpsell2:limpaUrl($("#fUpsell2").value), linkDownsell2:limpaUrl($("#fDownsell2").value),
@@ -985,6 +1003,7 @@ function salvarOferta(){
       if(ex) ex.valor=valor; else o.adsHistorico.push({data:dia,valor});
     }
   }
+  lembraQuem($("#fQuem").value);
   save(); fecharModais(); renderTudo();
 }
 function excluirOferta(){
@@ -1001,13 +1020,20 @@ function apagarOferta(id){
   save(); renderTudo(); toast("Oferta apagada");
 }
 
+/* ---------- quem tá salvando (fica lembrado no navegador de cada um) ---------- */
+function quemSou(){ try{ return localStorage.getItem("painel-quem")||""; }catch(e){ return ""; } }
+function lembraQuem(v){ if(!v) return; try{ localStorage.setItem("painel-quem",v); }catch(e){} }
+
 /* ---------- captura rápida (baixa fricção) ---------- */
 function qcapSalvar(){
+  const quem=$("#qQuem").value;
+  if(!quem){ toast("Escolhe quem tá salvando 👤"); $("#qQuem").focus(); return; }
+  lembraQuem(quem);
   const nome=$("#qNome").value.trim(), link=limpaUrl($("#qLink").value), vsl=limpaUrl($("#qVsl").value), checkout=limpaUrl($("#qCheckout").value), adsRaw=$("#qAds").value.trim();
   if(!nome && !link && !vsl && !checkout && adsRaw===""){ toast("Preenche pelo menos um campo 🙂"); return; }
   const o={ id:uid(), criadoEm:Date.now(), atualizadoEm:Date.now(), dia:hoje(),
     nome:nome||autoNome(vsl,link,checkout), nicho:"", pais:"", status:"na-mira", imagem:"",
-    projetoId:$("#filtroProjeto").value||null,
+    projetoId:$("#filtroProjeto").value||null, capturadoPor:quem,
     linkFb:link, linksVsl: vsl? [vsl] : [], linkVsl:"", linksAdNativo:[], adsNat:[], linkCheckout:checkout, linkQuiz:"", linkAdv:"", linkPresell:"",
     observacoes:"", adsHistorico:[] };
   if(adsRaw!==""){ const v=parseInt(adsRaw,10); if(!isNaN(v)) o.adsHistorico.push({data:hoje(),valor:v}); }
@@ -1123,7 +1149,12 @@ function wire(){
   // filtros
   $("#filtroProjeto").onchange=renderOfertas;
   $("#filtroStatus").onchange=renderOfertas;
+  $("#filtroDia").onchange=renderOfertas;
   $("#busca").oninput=renderOfertas;
+
+  // "quem sou eu" lembrado neste navegador
+  $("#qQuem").value=quemSou();
+  $("#qQuem").onchange=e=>lembraQuem(e.target.value);
 
   // captura rápida: Enter em qualquer campo ou botão salva
   $("#qSalvar").onclick=qcapSalvar;
