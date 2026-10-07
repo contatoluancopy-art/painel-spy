@@ -231,6 +231,21 @@ details.funil summary::before{content:"▸";display:inline-block;color:var(--txt
 details.funil[open] summary::before{transform:rotate(90deg)}
 details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:column;gap:11px}
 
+/* ============ FILTROS DO TOPO ============ */
+#filtrosTopo{margin-bottom:10px}
+#filtrosTopo .ate{color:var(--txt-3);font-size:12.5px;font-weight:600}
+#fltCont{color:var(--txt-3);font-size:12.5px;font-weight:700;white-space:nowrap}
+@media(max-width:560px){ #filtrosTopo select,#filtrosTopo input{flex:1;min-width:46%} }
+
+/* ============ GRÁFICO DE ADS NO CARD ============ */
+.adsgraf{margin-top:7px;padding-top:8px;border-top:1px solid var(--border)}
+.adsgraf svg{display:block;width:100%;height:54px}
+.aglbl{display:flex;justify-content:space-between;color:var(--txt-3);font-size:10.5px;font-weight:700;margin-top:3px}
+.aglbl b{color:var(--laranja)}
+
+/* ============ LIXEIRA ============ */
+.lixsub{color:var(--txt-3);font-size:12.5px;font-weight:600;line-height:1.5}
+
 /* ============ CHECK "SPY COMPLETO" ============ */
 .spychk{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--txt-3);cursor:pointer;padding:3px 7px;border-radius:6px;user-select:none;white-space:nowrap}
 .spychk:hover{background:var(--surface-2)}
@@ -319,6 +334,18 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
 <main>
   <!-- ===== OFERTAS ===== -->
   <section id="view-ofertas">
+    <div class="toolbar" id="filtrosTopo">
+      <select id="fltPlataforma"><option value="">Plataforma: todas</option></select>
+      <select id="fltLingua"><option value="">Língua: todas</option></select>
+      <select id="fltTipo"><option value="">Tipo: todos</option></select>
+      <select id="fltNicho"><option value="">Nicho: todos</option></select>
+      <select id="fltComo"><option value="">Como encontrou: todos</option></select>
+      <input type="date" id="fltDe" title="Capturadas a partir de">
+      <span class="ate">até</span>
+      <input type="date" id="fltAte" title="Capturadas até">
+      <select id="fltQuem"><option value="">Criado por: todos</option></select>
+      <span id="fltCont"></span>
+    </div>
     <div class="qcap">
       <div class="tit">⚡ Captura rápida</div>
       <select id="qQuem" title="Quem tá salvando a oferta">
@@ -336,6 +363,7 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
     <div class="toolbar">
       <button class="btn primary" id="btnNovaOferta">+ Nova oferta</button>
       <button class="btn" id="btnCheckin" title="Atualizar o nº de ads de cada oferta hoje">📈 Check-in</button>
+      <button class="btn" id="btnLixeira" title="Ofertas apagadas (somem sozinhas após 30 dias)">🗑️ Lixeira</button>
       <div class="seg"><span class="lbl">Agrupar</span>
         <button data-group="dia" class="active">Dia</button>
         <button data-group="projeto">Projeto</button>
@@ -525,6 +553,17 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
 <input type="file" id="importFile" accept="application/json,.json" class="hidden">
 <div id="toast"></div>
 
+<!-- ===== MODAL LIXEIRA ===== -->
+<div class="overlay" id="modalLixeira">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-head"><h3>🗑️ Lixeira</h3><button class="x" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="lixsub">O que for apagado fica aqui por <b>30 dias</b> — dá pra restaurar quando quiser. Depois disso some sozinho, de vez.</div>
+      <div class="ckrows" id="lixLista"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL CHECK-IN DO DIA ===== -->
 <div class="overlay" id="modalCheckin">
   <div class="modal" style="max-width:620px">
@@ -669,6 +708,18 @@ let sb=null, canal=null, pushing=false, pushAgain=false;
 const clientId=uid();
 let lastSynced=new Map();                 // id -> {kind, j} (j="__del__" = apagado)
 let lastPull="1970-01-01T00:00:00.000Z";  // relógio do SERVIDOR (updated_at mais recente visto)
+let lixeira=[];                           // apagadas (ficam 30 dias): {id, kind, data, updated_at}
+
+function lixeiraPoe(id,kind,data,quando){
+  if(!data || !data.id) return; // tombstone antigo sem conteúdo não entra
+  const i=lixeira.findIndex(x=>x.id===id);
+  const item={id, kind, data, updated_at: quando||new Date().toISOString()};
+  if(i>=0) lixeira[i]=item; else lixeira.push(item);
+}
+function lixeiraTira(id){
+  const i=lixeira.findIndex(x=>x.id===id);
+  if(i>=0) lixeira.splice(i,1);
+}
 
 function setBadge(st){ // 'vivo' | 'off' | 'local'
   const b=$("#syncBadge"); if(!b) return;
@@ -686,10 +737,15 @@ function aplicaRow(r){
   const arrName= r.kind==="oferta"?"ofertas" : r.kind==="projeto"?"projetos" : "tarefas";
   const arr=state[arrName]||(state[arrName]=[]);
   const i=arr.findIndex(x=>x.id===r.id);
-  if(r.deleted){ if(i>=0) arr.splice(i,1); lastSynced.set(r.id,{kind:r.kind,j:"__del__"}); }
+  if(r.deleted){
+    if(i>=0) arr.splice(i,1);
+    lastSynced.set(r.id,{kind:r.kind,j:"__del__"});
+    lixeiraPoe(r.id,r.kind,r.data,r.updated_at);
+  }
   else{
     if(i>=0) arr[i]=r.data; else arr.push(r.data);
     lastSynced.set(r.id,{kind:r.kind,j:JSON.stringify(r.data)});
+    lixeiraTira(r.id);
   }
   if(r.updated_at && r.updated_at>lastPull) lastPull=r.updated_at;
 }
@@ -706,12 +762,19 @@ async function pushDiff(){
       if(!prev || prev.j!==j) ups.push({id, kind:r.kind, deleted:false, data:r.data});
     }
     for(const [id,prev] of lastSynced){
-      if(!rows.has(id) && prev.j!=="__del__") ups.push({id, kind:prev.kind, deleted:true, data:{}});
+      if(!rows.has(id) && prev.j!=="__del__"){
+        // apagar = tombstone COM o conteúdo (vai pra lixeira, restaurável por 30 dias)
+        let dados={}; try{ dados=JSON.parse(prev.j); }catch(e){}
+        ups.push({id, kind:prev.kind, deleted:true, data:dados});
+      }
     }
     if(ups.length){
       const {error}=await sb.from("painel_rows").upsert(ups);
       if(error) throw error;
-      for(const u of ups) lastSynced.set(u.id,{kind:u.kind, j:u.deleted?"__del__":JSON.stringify(u.data)});
+      for(const u of ups){
+        lastSynced.set(u.id,{kind:u.kind, j:u.deleted?"__del__":JSON.stringify(u.data)});
+        if(u.deleted) lixeiraPoe(u.id,u.kind,u.data);
+      }
       if(canal) canal.send({type:"broadcast", event:"mudou", payload:{de:clientId}});
       await pullNovos(); // sincroniza o lastPull com o relógio do servidor
     }
@@ -734,6 +797,7 @@ async function pullTudo(){
   }
   state={version:1,projetos:[],ofertas:[],tarefas:[]};
   lastSynced=new Map();
+  lixeira=[];
   for(const r of todos) aplicaRow(r);
   try{ localStorage.setItem("painel-state", JSON.stringify(state)); }catch(e){}
 }
@@ -780,6 +844,11 @@ async function initOnline(){
       setTimeout(()=>$("#gateSenha").focus(),80);
     });
   }
+  // faxina automática: tombstone com 30+ dias sem ninguém mexer some de vez
+  try{
+    const limite=new Date(Date.now()-30*86400000).toISOString();
+    await sb.from("painel_rows").delete().eq("deleted",true).lt("updated_at",limite);
+  }catch(e){ console.error("faxina lixeira:",e); }
   await pullTudo();
   conectaCanal();
   setInterval(()=>pullNovos().catch(()=>{}), 25000);                                   // rede de segurança
@@ -805,6 +874,30 @@ function sparkline(vals){
 }
 const COPY_SVG='<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 const OPEN_SVG='<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+// gráfico da evolução do nº de ads (um ponto por dia registrado, do dia 1 até o último)
+function graficoAds(o){
+  const h=(o.adsHistorico||[]).slice().sort((a,b)=>a.data<b.data?-1:1);
+  if(h.length<2) return "";
+  const W=300,H=54,P=7;
+  const t0=new Date(h[0].data+"T00:00").getTime(), t1=new Date(h[h.length-1].data+"T00:00").getTime(), span=(t1-t0)||1;
+  const mn=Math.min(...h.map(x=>x.valor)), mx=Math.max(...h.map(x=>x.valor)), rng=(mx-mn)||1;
+  const pts=h.map(x=>[
+    P+((new Date(x.data+"T00:00").getTime()-t0)/span)*(W-2*P),
+    P+(1-(x.valor-mn)/rng)*(H-2*P)
+  ]);
+  const linha=pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const area=`M${pts[0][0].toFixed(1)},${H-2} `+pts.map(p=>`L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ")+` L${pts[pts.length-1][0].toFixed(1)},${H-2} Z`;
+  const bolas=h.map((x,i)=>`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="2.8" fill="var(--laranja)"><title>${fmtDataCurta(x.data)}: ${x.valor} ads</title></circle>`).join("");
+  const a=h[0], z=h[h.length-1];
+  return `<div class="adsgraf">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <path d="${area}" fill="var(--laranja-soft)"/>
+      <polyline points="${linha}" fill="none" stroke="var(--laranja)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      ${bolas}
+    </svg>
+    <div class="aglbl"><span>${fmtDataCurta(a.data)} · ${a.valor}</span><span>${fmtDataCurta(z.data)} · <b>${z.valor} ads</b></span></div>
+  </div>`;
+}
 function linkChip(cls,label,url){
   const u=esc(norm(url));
   return `<span class="chip ${cls}"><span class="lb">${label}</span>`+
@@ -822,21 +915,55 @@ function filtros(){
     status:  $("#filtroStatus").value,
     dia:     $("#filtroDia").value,
     q:       $("#busca").value.trim().toLowerCase(),
+    plataforma: $("#fltPlataforma").value,
+    lingua:  $("#fltLingua").value,
+    tipo:    $("#fltTipo").value,
+    nicho:   $("#fltNicho").value,
+    como:    $("#fltComo").value,
+    de:      $("#fltDe").value,
+    ate:     $("#fltAte").value,
+    quem:    $("#fltQuem").value,
   };
 }
 function passaFiltro(o,f){
   if(f.projeto && o.projetoId!==f.projeto) return false;
   if(f.status && o.status!==f.status) return false;
   if(f.dia && o.dia!==f.dia) return false;
+  if(f.plataforma && (o.plataforma||"")!==f.plataforma) return false;
+  if(f.lingua && (o.lingua||"")!==f.lingua) return false;
+  if(f.tipo && (o.tipo||"")!==f.tipo) return false;
+  if(f.nicho && (o.nicho||"")!==f.nicho) return false;
+  if(f.como && (o.comoEncontrou||"")!==f.como) return false;
+  if(f.quem && (o.capturadoPor||"")!==f.quem) return false;
+  if(f.de && (o.dia||"")<f.de) return false;
+  if(f.ate && (o.dia||"")>f.ate) return false;
   if(f.q){
     const blob=[o.nome,o.nicho,o.pais,o.observacoes,o.anunciante,o.plataforma,o.lingua,o.tipo,o.comoEncontrou,o.capturadoPor].map(x=>x||"").join(" ").toLowerCase();
     if(!blob.includes(f.q)) return false;
   }
   return true;
 }
+// selects dos filtros do topo: opções nascem do que já foi cadastrado
+function syncFiltroTopo(){
+  const campos=[
+    ["fltPlataforma","plataforma","Plataforma: todas"],
+    ["fltLingua","lingua","Língua: todas"],
+    ["fltTipo","tipo","Tipo: todos"],
+    ["fltNicho","nicho","Nicho: todos"],
+    ["fltComo","comoEncontrou","Como encontrou: todos"],
+    ["fltQuem","capturadoPor","Criado por: todos"],
+  ];
+  for(const [selId,campo,rotulo] of campos){
+    const sel=$("#"+selId), atual=sel.value;
+    const vals=[...new Set(state.ofertas.map(o=>(o[campo]||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    sel.innerHTML=`<option value="">${rotulo}</option>`+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    sel.value= vals.includes(atual)? atual : "";
+  }
+}
 function renderOfertas(){
   const cont=$("#ofertasContainer"), f=filtros();
   const lista=state.ofertas.filter(o=>passaFiltro(o,f));
+  $("#fltCont").textContent=`${lista.length} de ${state.ofertas.length} oferta${state.ofertas.length!==1?"s":""}`;
   if(!lista.length){
     cont.innerHTML=`<div class="empty"><div class="big">🛰️</div><h3>${state.ofertas.length?"Nada com esse filtro":"Nenhuma oferta ainda"}</h3><p>${state.ofertas.length?"Ajuste os filtros acima.":"Clique em <b>+ Nova oferta</b> pra começar a salvar."}</p></div>`;
     return;
@@ -923,6 +1050,7 @@ function cardHTML(o){
         <button class="mini del" data-del="${o.id}">🗑️ Apagar</button>
         ${ads?sparkline(ads.serie):""}
       </div>
+      ${graficoAds(o)}
     </div>
   </div>`;
 }
@@ -936,8 +1064,10 @@ function renderResumo(){
   $("#resumo").innerHTML=`<span><b>${total}</b> ofertas</span><span><b>${esc_}</b> escalando</span>`;
   const pend=semCheckinHoje().length;
   $("#btnCheckin").textContent= pend? `📈 Check-in (${pend})` : "📈 Check-in ✓";
+  const nLix=lixeira.filter(x=>x.kind==="oferta").length;
+  $("#btnLixeira").textContent= nLix? `🗑️ Lixeira (${nLix})` : "🗑️ Lixeira";
 }
-function renderTudo(){ renderOfertas(); renderResumo(); syncProjetoSelects(); }
+function renderTudo(){ syncFiltroTopo(); renderOfertas(); renderResumo(); syncProjetoSelects(); }
 
 /* ---------- selects de projeto ---------- */
 function syncProjetoSelects(){
@@ -1101,6 +1231,29 @@ function apagarOferta(id){
 /* ---------- quem tá salvando (fica lembrado no navegador de cada um) ---------- */
 function quemSou(){ try{ return localStorage.getItem("painel-quem")||""; }catch(e){ return ""; } }
 function lembraQuem(v){ if(!v) return; try{ localStorage.setItem("painel-quem",v); }catch(e){} }
+
+/* ---------- lixeira: apagadas ficam 30 dias, dá pra restaurar ---------- */
+function abrirLixeira(){
+  const itens=lixeira.filter(x=>x.kind==="oferta").slice().sort((a,b)=>a.updated_at<b.updated_at?1:-1);
+  $("#lixLista").innerHTML= itens.length? itens.map(x=>{
+    const dias=Math.max(0, 30-Math.floor((Date.now()-new Date(x.updated_at).getTime())/86400000));
+    return `<div class="ckrow">
+      <span class="cknome">${esc(x.data?.nome||"(sem nome)")}</span>
+      <span class="ckult">apagada ${fmtDataCurta((x.updated_at||"").slice(0,10))} · some em ${dias}d</span>
+      <button class="btn" data-rest="${x.id}" type="button">Restaurar</button>
+    </div>`;
+  }).join("") : `<div style="color:var(--txt-3);font-size:13px;padding:6px 2px">Lixeira vazia 🙂</div>`;
+  $("#modalLixeira").classList.add("open");
+}
+function restaurarDaLixeira(id){
+  const i=lixeira.findIndex(x=>x.id===id); if(i<0) return;
+  const it=lixeira[i];
+  const arrName= it.kind==="oferta"?"ofertas" : it.kind==="projeto"?"projetos" : "tarefas";
+  if(!state[arrName].some(x=>x.id===id)) state[arrName].push(it.data);
+  lixeira.splice(i,1);
+  save(); renderTudo(); abrirLixeira();
+  toast("Restaurada ✓");
+}
 
 /* ---------- check-in do dia: nº de ads na biblioteca, oferta por oferta ---------- */
 function registraAdsHoje(o,valor){
@@ -1280,6 +1433,7 @@ function wire(){
   $("#filtroStatus").onchange=renderOfertas;
   $("#filtroDia").onchange=renderOfertas;
   $("#busca").oninput=renderOfertas;
+  ["fltPlataforma","fltLingua","fltTipo","fltNicho","fltComo","fltDe","fltAte","fltQuem"].forEach(id=>$("#"+id).onchange=renderOfertas);
 
   // "quem sou eu" lembrado neste navegador
   $("#qQuem").value=quemSou();
@@ -1321,6 +1475,10 @@ function wire(){
   // check-in do dia
   $("#btnCheckin").onclick=abrirCheckin;
   $("#btnSalvarCheckin").onclick=salvarCheckin;
+
+  // lixeira
+  $("#btnLixeira").onclick=abrirLixeira;
+  $("#lixLista").onclick=e=>{ const b=e.target.closest("[data-rest]"); if(b) restaurarDaLixeira(b.dataset.rest); };
 
   // modais: fechar
   $$("[data-close]").forEach(b=>b.onclick=fecharModais);
