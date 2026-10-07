@@ -486,8 +486,8 @@ details.funil .funil-body{padding:4px 12px 13px;display:flex;flex-direction:colu
 
 /* ---------- CONFIG ONLINE — preencher com os dados do projeto Supabase ---------- */
 const CONFIG = {
-  SUPABASE_URL: "",       // ex: https://xxxxx.supabase.co   (Settings → API → Project URL)
-  SUPABASE_ANON_KEY: "",  // Settings → API → anon public
+  SUPABASE_URL: "https://zhiykskzmbqzxcishdmi.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_HHf64ineRz5Yr2_bOnzxWg_YKj2bz4q", // chave pública (publishable) — protegida por RLS
   TEAM_EMAIL: "contato.luancopy@gmail.com", // usuário único do time no Supabase Auth
 };
 const ONLINE = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase);
