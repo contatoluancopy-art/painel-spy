@@ -71,6 +71,13 @@ Config do replay do 213: `webinarjam-replay-config-213.json` · HTML da página 
 
 - Hyros (conta 177903), VWO (Visual Website Optimizer), ActiveCampaign (diffuser), GTM (GTM-PWX9DSN e GTM-WSNTQ64D), pixel do Facebook, cookie de venda do WebinarJam (`event.webinarjam.com/t/sale/cookie.js`)
 
+## Publicado no Painel Spy web (08/10/2026)
+
+- Card da oferta: https://contatoluancopy-art.github.io/painel-spy/ (senha do time)
+- PDF "como funciona o funil": https://contatoluancopy-art.github.io/painel-spy/arquivos/dropservicing-blueprint-como-funciona-o-funil.pdf
+- Este mapa de links: https://contatoluancopy-art.github.io/painel-spy/arquivos/dropservicing-blueprint-links-e-mapa.md
+- Drive da oferta: https://drive.google.com/drive/folders/1UFimFZqN3_nJ_QosJu8fmWBlj1bh7wUf?usp=sharing
+
 ## HTMLs salvos (`paginas-html/`)
 
 - `registro-training.html` — página de registro
